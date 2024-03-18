@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<body>
+<style>
+:root {
+	--background: #2B2D42;
+  --foreground: #3E92CC;
+  --secondary: #688B58;
+  --text: #EEF0F2;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+} 
+
+body {
+	background-color: var(--background);
+  color: var(--text);
+  font-family: Arial, sans-serif
+}
+
+.foreground {
+	background-color: var(--foreground);
+  margin: 15px;
+  padding: 20px;
+  border-radius: 25px;
+}
+
+.numberInput {
+	font-size: 1em;
+  width: 1em;
+  padding: 10px;
+  background-color: var(--secondary);
+  border-style: none;
+  border-radius: 10px;
+  font-weight: bold;
+  color: var(--text);
+  -moz-appearance: textfield;
+}
+
+.numberInput::-webkit-outer-spin-button,
+.numberInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.inputColons {
+	font-weight: bold;
+}
+
+.formButton {
+	font-size: 1em;
+  padding: 10px;
+  background-color: var(--secondary);
+  border-style: none;
+  border-radius: 10px;
+  font-weight: bold;
+  color: var(--text);
+  cursor: pointer;
+}
+</style>
+
+<script>
+let oldNotification = null;
+let savingTable = false;
+
+Notification.requestPermission();
+
+async function waitMs(ms) {
+	await new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function displayTime(time, state) {
+	let minutes = Math.floor(time/60);
+	let seconds = time % 60;
+  if (seconds.toString().length < 2) {
+    seconds = "0" + seconds.toString();
+  }
+  
+  if (oldNotification != null) {
+    oldNotification.close();
+  }
+  
+  document.getElementById("time").innerHTML = minutes + ":" + seconds;
+  oldNotification = new Notification(minutes + ":" + seconds + " left", {body: state});
+}
+
+function startResizing() {
+	let numberInputs = document.getElementsByClassName("numberInput");
+    
+  for (let i = 0; i < numberInputs.length; i++) {
+    let numberInput = numberInputs[i];
+    numberInput.addEventListener('input', resizeInput);
+    resizeInput.call(numberInput);
+  }
+}
+
+function resizeInput() {
+  this.style.width = this.value.length + "ch";
+}
+
+function saveTable() {
+	savingTable = true;
+    document.getElementById("tableSettings").requestSubmit();
+}
+
+async function start(event) {
+	event.preventDefault();
+    
+  if (savingTable == false) {
+    let data = new FormData(event.target);
+    let initBreath = Math.round(Number(data.get("initBreathMins"))*60 + Number(data.get("initBreathSecs")));
+    let initHold = Math.round(Number(data.get("initHoldMins"))*60 + Number(data.get("initHoldSecs")));
+    let breathInc = Math.round(Number(data.get("breathIncMins"))*60 + Number(data.get("breathIncSecs")));
+    let holdInc = Math.round(Number(data.get("holdIncMins"))*60 + Number(data.get("holdIncSecs")));
+    let intervals = Math.round(Number(data.get("intervals")));
+
+    let breath = initBreath;
+    let hold = initHold;
+
+    document.getElementById("tableSettings").style.display = "none";
+    document.getElementById("dive").style.display = "block";
+
+    for (let interval = 0; interval < intervals; interval++) {
+      document.getElementById("state").innerHTML = "Breathing";
+      for (let time = breath; time > 0; time--) {
+        displayTime(time, "Breathing");
+        await waitMs(1000);
+      }
+
+      document.getElementById("state").innerHTML = "Holding";
+      for (let time = hold; time > 0; time--) {
+        displayTime(time, "Holding");
+        await waitMs(1000);
+      }
+
+    breath += breathInc;
+    hold += holdInc;
+    }
+
+    document.getElementById("dive").style.display = "none";
+    document.getElementById("tableSettings").style.display = "block";
+  }
+}
+
+function onLoad() {
+	startResizing();
+}
+window.onload = onLoad;
+</script>
+
+
+<div class="foreground">
+<h1>Noti-dive</h1>
+</div>
+
+<form id="tableSettings" class="foreground" style="display:block" onsubmit="start(event)">
+<h3>Initial Breathing Time</h3>
+<input type="number" value=2 name="initBreathMins" class="numberInput">
+<span class="inputColons">:</span>
+<input type="number" value=0 name="initBreathSecs" class="numberInput">
+<p>&nbsp</p>
+
+<h3>Initial Breath Hold Time</h3>
+<input type="number" value=1 name="initHoldMins" class="numberInput">
+<span class="inputColons">:</span>
+<input type="number" value=30 name="initHoldSecs" class="numberInput">
+<p>&nbsp</p>
+
+<h3>Breathing Time Increase</h3>
+<input type="number" value=0 name="breathIncMins" class="numberInput">
+<span class="inputColons">:</span>
+<input type="number" value=0 name="breathIncSecs" class="numberInput">
+<p>&nbsp</p>
+
+<h3>Breath Hold Increase</h3>
+<input type="number" value=0 name="holdIncMins" class="numberInput">
+<span class="inputColons">:</span>
+<input type="number" value=15 name="holdIncSecs" class="numberInput">
+<p>&nbsp</p>
+
+<h3>Intervals</h3>
+<input type="number" value=6 name="intervals" class="numberInput">
+<p>&nbsp</p>
+
+<input type="submit" value="Start" class="formButton">
+</form>
+
+
+
+<div id="dive" class="foreground" style="display:none">
+<h3 id="state">Loading...</h3>
+<h3 id="time">Loading...</h3>
+</div>
+</body>
+</html>
